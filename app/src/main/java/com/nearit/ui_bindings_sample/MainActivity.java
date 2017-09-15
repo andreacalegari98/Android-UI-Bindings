@@ -67,8 +67,10 @@ public class MainActivity extends AppCompatActivity {
                 startActivityForResult(
                         //  Asks for location and bluetooth
                         //  but the latter is not a blocking requirement
+                        //  + no header
                         NearITUIBindings.getInstance(MainActivity.this)
                                 .createPermissionRequestIntentBuilder()
+                                .setNoHeader()
                                 .nonBlockingBeacon()
                                 .build(),
                         NEAR_PERMISSION_REQUEST);
