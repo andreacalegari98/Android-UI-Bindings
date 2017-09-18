@@ -10,6 +10,7 @@ import android.graphics.Rect;
 import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.content.ContextCompat;
@@ -48,6 +49,7 @@ public class NearItPermissionsActivity extends AppCompatActivity implements Goog
     private static final int NEAR_BLUETOOTH_SETTINGS_CODE = 4000;
     private static final int NEAR_LOCATION_SETTINGS_CODE = 5000;
     private static final int NEAR_PERMISSION_REQUEST_FINE_LOCATION = 6000;
+    private static int NEAR_AUTOCLOSE_DELAY;
 
     /**
      * Flow parameters
@@ -83,6 +85,12 @@ public class NearItPermissionsActivity extends AppCompatActivity implements Goog
             isAutoStartRadar = params.isAutoStartRadar();
             headerDrawable = params.getHeaderDrawable();
             isNoHeader = params.isNoHeader();
+        }
+
+        if(isInvisibleLayoutMode) {
+            NEAR_AUTOCLOSE_DELAY = 0;
+        } else {
+            NEAR_AUTOCLOSE_DELAY = 1000;
         }
 
         if (!isBleAvailable()) {
@@ -146,6 +154,7 @@ public class NearItPermissionsActivity extends AppCompatActivity implements Goog
             closeButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
+                    NEAR_AUTOCLOSE_DELAY = 0;
                     finalCheck();
                 }
             });
@@ -238,6 +247,8 @@ public class NearItPermissionsActivity extends AppCompatActivity implements Goog
             if (resultCode == Activity.RESULT_OK) {
                 if (checkLocation()) {
                     finalCheck();
+                } else {
+                    askPermissions();
                 }
             } else {
                 if (isInvisibleLayoutMode) {
@@ -252,21 +263,32 @@ public class NearItPermissionsActivity extends AppCompatActivity implements Goog
     }
 
     private void onLocationSettingsOkResult() {
-        if (isInvisibleLayoutMode) {
-            if (!isNoBeacon) {
-                openBluetoothSettings();
-            } else {
-                finalCheck();
-            }
+
+        if(isNoBeacon) {
+            finalCheck();
         } else {
-            if (isNoBeacon) {
+            if(checkBluetooth()) {
                 finalCheck();
             } else {
-                if (checkBluetooth()) {
-                    finalCheck();
-                }
+                openBluetoothSettings();
             }
         }
+
+//        if (isInvisibleLayoutMode) {
+//            if (!isNoBeacon) {
+//                openBluetoothSettings();
+//            } else {
+//                finalCheck();
+//            }
+//        } else {
+//            if (isNoBeacon) {
+//                finalCheck();
+//            } else {
+//                if (checkBluetooth()) {
+//                    finalCheck();
+//                }
+//            }
+//        }
     }
 
     /**
@@ -308,7 +330,17 @@ public class NearItPermissionsActivity extends AppCompatActivity implements Goog
     public void finalCheck() {
         if (checkLocation()) {
             if (checkBluetooth() || isNoBeacon || isNonBlockingBeacon) {
-                onPermissionsReady();
+                final Handler handler = new Handler();
+                if (closeButton != null) {
+                    closeButton.setEnabled(false);
+                    closeButton.setOnClickListener(null);
+                }
+                handler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        onPermissionsReady();
+                    }
+                }, NEAR_AUTOCLOSE_DELAY);
             } else {
                 finish();
             }
@@ -324,6 +356,7 @@ public class NearItPermissionsActivity extends AppCompatActivity implements Goog
         if (isAutoStartRadar) {
             NearItManager.getInstance().startRadar();
         }
+        //  add delay
         setResult(Activity.RESULT_OK);
         finish();
     }
